@@ -97,8 +97,8 @@ android {
         }
          release {
             storeFile rootProject.file("app/my-release-key.keystore")
-            storePassword "123456"
             keyAlias "my-key-alias"
+            storePassword "123456"
             keyPassword "123456"
     }
     }
