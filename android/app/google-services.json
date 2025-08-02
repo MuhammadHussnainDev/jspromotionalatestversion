@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:63894906325:android:bb8f1db390308f83cf895c",
+        "mobilesdk_app_id": "1:63894906325:android:a1abee7488901602cf895c",
         "android_client_info": {
-          "package_name": "com.jspromotionalatestversion"
+          "package_name": "com.easyflyer"
         }
       },
       "oauth_client": [],
