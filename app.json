@@ -1,8 +1,9 @@
+
 {
   "name": "easy-flyer",
   "displayName": "Easy Flyer",
-      "expo": {
-      "name": "Easy Flyer",
+  "expo": {
+    "name": "Easy Flyer",
     "slug": "jspromotionalatestversion",
     "version": "1.0.0",
     "orientation": "portrait",
