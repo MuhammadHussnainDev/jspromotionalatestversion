@@ -1,4 +1,4 @@
-import React, {useContext, useState} from 'react';
+import React, { useContext, useState } from 'react';
 import {
   View,
   Text,
@@ -6,17 +6,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
-import {useToast} from 'react-native-toast-notifications';
-import {saveUserData} from '../../../lib/storageUtils'; // Import the utility function
-import {AuthContext} from '../../../lib/AuthContext';
-import {createPostalCodeUser} from '../../../actions/postal-code/create-code';
+import { useToast } from 'react-native-toast-notifications';
+import { saveUserData } from '../../../lib/storageUtils'; // Import the utility function
+import { AuthContext } from '../../../lib/AuthContext';
+import { createPostalCodeUser } from '../../../actions/postal-code/create-code';
 
 const SignupScreen = () => {
   const [postalCode, setPostalCode] = useState('');
   const [loading, setLoading] = useState(false);
   const toast = useToast();
-  const {setIsLoggedIn, updateUserData} = useContext(AuthContext); // Access the setIsLoggedIn function
+  const { setIsLoggedIn, updateUserData } = useContext(AuthContext); // Access the setIsLoggedIn function
 
   // const handleSignup = async () => {
   //   if (!postalCode.trim()) {
@@ -90,8 +91,8 @@ const SignupScreen = () => {
       const result = await createPostalCodeUser(postalCode);
 
       if (result.success && result.userId) {
-        const {userId, postalCode: userPostalCode, fcmToken} = result;
-        const userData = {userId, postalCode: userPostalCode, fcmToken}; // Save postalCode, userId, and FCM token
+        const { userId, postalCode: userPostalCode, fcmToken } = result;
+        const userData = { userId, postalCode: userPostalCode, fcmToken }; // Save postalCode, userId, and FCM token
 
         // Save user data locally
         await saveUserData('userData', userData);
@@ -132,10 +133,14 @@ const SignupScreen = () => {
     <View style={styles.container}>
       {/* Profile Icon */}
       <View style={styles.profileIconContainer}>
-        {/* Placeholder for Profile Icon */}
+        <Image
+          source={require('../../../assets/logo/playstore.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
       </View>
 
-      <Text style={styles.title}>Promotional App</Text>
+      <Text style={styles.title}>Easy Flyer</Text>
 
       {/* Input Field */}
       <TextInput
@@ -152,7 +157,8 @@ const SignupScreen = () => {
       <TouchableOpacity
         onPress={handleSignup}
         style={[styles.signupButton, loading && styles.disabledButton]}
-        disabled={loading}>
+        disabled={loading}
+      >
         {loading ? (
           <ActivityIndicator size="small" color="#fff" />
         ) : (
@@ -179,6 +185,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 24,
@@ -206,7 +217,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 20,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 3,
