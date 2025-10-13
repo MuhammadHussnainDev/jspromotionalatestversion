@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,12 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import {useDispatch, useSelector} from 'react-redux';
-import {formatDate} from './store-flyers';
-import {toggleEvents} from '../../store/slices/eventSlice';
-import {RootState} from '../../store/store';
+import { useDispatch, useSelector } from 'react-redux';
+import { formatDate } from './store-flyers';
+import { toggleEvents } from '../../store/slices/eventSlice';
+import { RootState } from '../../store/store';
 
-const SpecialEventCard = ({item}: any) => {
+const SpecialEventCard = ({ item, navigation }: any) => {
   const [imageLoading, setImageLoading] = useState(true);
   const dispatch = useDispatch();
 
@@ -25,8 +25,16 @@ const SpecialEventCard = ({item}: any) => {
     dispatch(toggleEvents(item));
   };
 
+  const handlePress = () => {
+    navigation?.navigate('SpecialEventDetail', { event: item });
+  };
+
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={handlePress}
+      activeOpacity={0.8}
+    >
       {/* Favorite (Heart) Icon */}
       <TouchableOpacity style={styles.heartIcon} onPress={handleFavoriteToggle}>
         <Icon
@@ -36,37 +44,48 @@ const SpecialEventCard = ({item}: any) => {
         />
       </TouchableOpacity>
 
-      {/* Flyer Image with Loader */}
+      {/* Event Image with Loader */}
       <View style={styles.imageContainer}>
-        {imageLoading && (
-          <ActivityIndicator
-            size="small"
-            color="#4C6EF5"
-            style={styles.imageLoader}
-          />
+        {item?.image ? (
+          <>
+            {imageLoading && (
+              <ActivityIndicator
+                size="small"
+                color="#4C6EF5"
+                style={styles.imageLoader}
+              />
+            )}
+            <Image
+              source={{ uri: item.image }}
+              style={styles.image}
+              resizeMode="cover"
+              onLoadStart={() => setImageLoading(true)}
+              onLoadEnd={() => setImageLoading(false)}
+              onError={() => setImageLoading(false)}
+            />
+          </>
+        ) : (
+          <View style={styles.placeholderImage}>
+            <View style={styles.placeholderIconContainer}>
+              <Icon name="event" size={32} color="#bbb" />
+            </View>
+            <Text style={styles.placeholderImageText}>No Image</Text>
+          </View>
         )}
-        <Image
-          source={{uri: item?.image}}
-          style={styles.image}
-          resizeMode="cover"
-          onLoadStart={() => setImageLoading(true)}
-          onLoadEnd={() => setImageLoading(false)}
-          onError={() => setImageLoading(false)}
-        />
       </View>
 
-      {/* Flyer Details Section */}
+      {/* Event Details Section */}
       <View style={styles.details}>
         <View style={styles.brandWithTitleContainer}>
           {item?.brand?.image || item?.store?.image ? (
             <Image
-              source={{uri: item?.brand?.image || item?.store?.image}}
+              source={{ uri: item?.brand?.image || item?.store?.image }}
               style={styles.brandImage}
               resizeMode="contain"
             />
           ) : (
             <View style={styles.placeholderBrandImage}>
-              <Text style={styles.placeholderText}>No Image</Text>
+              {/* <Text style={styles.placeholderText}>No Image</Text> */}
             </View>
           )}
 
@@ -74,13 +93,15 @@ const SpecialEventCard = ({item}: any) => {
             <Text
               style={styles.storeName}
               numberOfLines={1}
-              ellipsizeMode="tail">
+              ellipsizeMode="tail"
+            >
               {item?.store?.name || item?.brand?.name}
             </Text>
             <Text
               style={styles.eventName}
               numberOfLines={2}
-              ellipsizeMode="tail">
+              ellipsizeMode="tail"
+            >
               {item?.name}
             </Text>
             <Text style={styles.validity}>
@@ -90,7 +111,7 @@ const SpecialEventCard = ({item}: any) => {
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -101,7 +122,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 5,
@@ -178,6 +199,39 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 12,
     color: '#888',
+  },
+
+  placeholderImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+  },
+
+  placeholderIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 8,
+  },
+
+  placeholderImageText: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

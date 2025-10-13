@@ -13,6 +13,7 @@ import ListsScreen from '../Screens/List';
 import UpdatePostalCodeScreen from '../Screens/Update-Postal-Code';
 import StoresListScreen from '../Screens/Store-List-Screen';
 import CoolCatScreen from '../Screens/CoolCatScreen';
+import SpecialEventDetailScreen from '../Screens/SpecialEventDetail';
 
 const Stack = createStackNavigator();
 
@@ -119,6 +120,16 @@ const StackNavigation = () => {
         //   headerStyle: {backgroundColor: '#6200EE'},
         //   headerTintColor: '#fff',
         // }}
+      />
+
+      {/* Special Event Detail Screen: Fade-In */}
+      <Stack.Screen
+        name="SpecialEventDetail"
+        component={SpecialEventDetailScreen}
+        options={{
+          cardStyleInterpolator:
+            CardStyleInterpolators.forFadeFromBottomAndroid,
+        }}
       />
     </Stack.Navigator>
   );

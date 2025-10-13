@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -12,7 +12,7 @@ import {
   SpecialEvent,
 } from '../../actions/special-events.ts/fetch-special-events';
 
-const SpecialEventsComponent = ({mediaLink}: any) => {
+const SpecialEventsComponent = ({ mediaLink, navigation }: any) => {
   const [specialEvents, setSpecialEvents] = useState<SpecialEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,8 +41,12 @@ const SpecialEventsComponent = ({mediaLink}: any) => {
         <FlatList
           data={specialEvents}
           keyExtractor={(item: SpecialEvent) => item.id}
-          renderItem={({item}) => (
-            <SpecialEventCard item={item} mediaLink={mediaLink} />
+          renderItem={({ item }) => (
+            <SpecialEventCard
+              item={item}
+              mediaLink={mediaLink}
+              navigation={navigation}
+            />
           )}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
