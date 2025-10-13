@@ -113,13 +113,14 @@
 
 //////////////////////////////////////
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text } from 'react-native-paper';
 import {
   CouponGift,
   fetchAllCouponGifts,
 } from '../../actions/coupon-gifts/fetch-coupon';
+import { fetchBrandById } from '../../actions/brand/fetch-brand-by-id';
 import { formatDate } from './store-flyers'; // keep using your existing formatter
 
 // --- helpers ----------------------------------------------------
@@ -182,15 +183,32 @@ const StatusPill = ({ status, date }: { status: StatusType; date: any }) => {
 
 // --- component --------------------------------------------------
 
+type GiftCardWithBrand = CouponGift & { brandName?: string };
+
 export const GiftCardsComponent = () => {
-  const [giftCards, setGiftCards] = useState<CouponGift[]>([]);
+  const [giftCards, setGiftCards] = useState<GiftCardWithBrand[]>([]);
   const [loadingGiftCards, setLoadingGiftCards] = useState(true);
 
   useEffect(() => {
     const loadGiftCards = async () => {
       try {
         const coupons = await fetchAllCouponGifts();
-        setGiftCards(coupons ?? []);
+
+        // Fetch brand names for each coupon
+        const couponsWithBrands = await Promise.all(
+          (coupons ?? []).map(async coupon => {
+            if (coupon.brandId) {
+              const brand = await fetchBrandById(coupon.brandId);
+              return {
+                ...coupon,
+                brandName: brand?.name,
+              };
+            }
+            return coupon;
+          }),
+        );
+
+        setGiftCards(couponsWithBrands);
       } catch (error) {
         console.error('Error fetching gift cards:', error);
       } finally {
@@ -219,16 +237,30 @@ export const GiftCardsComponent = () => {
           <View style={[styles.dealCard, dim && { opacity: 0.6 }]}>
             <View style={styles.cardDetails}>
               <View style={styles.rowBetween}>
-                <Text style={styles.storeName}>{item.name}</Text>
                 <StatusPill
                   status={status}
                   date={status === 'upcoming' ? item.startDate : item.endDate}
                 />
               </View>
 
-              {/* ✅ compact, client-friendly copy */}
+              {/* Brand Name */}
+              {item.brandName && (
+                <Text style={styles.infoText}>
+                  <Text style={styles.label}>Brand Name: </Text>
+                  <Text style={styles.value}>{item.brandName}</Text>
+                </Text>
+              )}
+
+              {/* Coupon Gift Name */}
+              <Text style={styles.infoText}>
+                <Text style={styles.label}>Coupon Gift Name: </Text>
+                <Text style={styles.value}>{item.name}</Text>
+              </Text>
+
+              {/* Validity Period */}
               <Text style={styles.validity}>Valid: {range}</Text>
 
+              {/* Discount */}
               <Text style={styles.discount}>Discount: {item.discount}%</Text>
             </View>
           </View>
@@ -264,8 +296,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardDetails: { padding: 12 },
-  storeName: { fontSize: 16, fontWeight: 'bold', color: '#000' },
-  validity: { fontSize: 14, color: '#556170', marginTop: 6 },
+  infoText: { fontSize: 14, marginTop: 8 },
+  label: { fontSize: 14, fontWeight: '600', color: '#4A5568' },
+  value: { fontSize: 14, fontWeight: 'bold', color: '#000' },
+  validity: { fontSize: 14, color: '#556170', marginTop: 8 },
   discount: { fontSize: 14, color: '#000', fontWeight: 'bold', marginTop: 6 },
   emptyText: {
     textAlign: 'center',
@@ -277,7 +311,8 @@ const styles = StyleSheet.create({
   rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
+    marginBottom: 4,
   },
 
   pill: {
