@@ -14,7 +14,8 @@ import { toggleEvents } from '../../store/slices/eventSlice';
 import { RootState } from '../../store/store';
 
 const SpecialEventCard = ({ item, navigation }: any) => {
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(!!item.image);
+  const [imageError, setImageError] = useState(false);
   const dispatch = useDispatch();
 
   // Check if this event is already a favorite
@@ -46,22 +47,26 @@ const SpecialEventCard = ({ item, navigation }: any) => {
 
       {/* Event Image with Loader */}
       <View style={styles.imageContainer}>
-        {item?.image ? (
+        {item?.image && !imageError ? (
           <>
             {imageLoading && (
-              <ActivityIndicator
-                size="small"
-                color="#4C6EF5"
-                style={styles.imageLoader}
-              />
+              <View style={styles.imageLoaderContainer}>
+                <ActivityIndicator size="small" color="#4C6EF5" />
+              </View>
             )}
             <Image
-              source={{ uri: item.image }}
+              source={{
+                uri: item.image,
+                cache: 'force-cache',
+              }}
               style={styles.image}
               resizeMode="cover"
               onLoadStart={() => setImageLoading(true)}
               onLoadEnd={() => setImageLoading(false)}
-              onError={() => setImageLoading(false)}
+              onError={() => {
+                setImageLoading(false);
+                setImageError(true);
+              }}
             />
           </>
         ) : (
@@ -69,7 +74,9 @@ const SpecialEventCard = ({ item, navigation }: any) => {
             <View style={styles.placeholderIconContainer}>
               <Icon name="event" size={32} color="#bbb" />
             </View>
-            <Text style={styles.placeholderImageText}>No Image</Text>
+            <Text style={styles.placeholderImageText}>
+              {imageError ? 'Failed to load' : 'No Image'}
+            </Text>
           </View>
         )}
       </View>
@@ -141,8 +148,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  imageLoader: {
+  imageLoaderContainer: {
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(248, 249, 250, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   heartIcon: {
     position: 'absolute',

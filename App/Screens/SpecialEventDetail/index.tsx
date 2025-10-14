@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import RNFS from 'react-native-fs';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -42,6 +43,11 @@ const MIN_HEIGHT = 56;
 const MAX_HEIGHT = 120;
 
 /* -------------------- Utils -------------------- */
+const isBase64 = (uri?: string | null) =>
+  !!uri && uri.startsWith('data:image/');
+const filenameFromUrl = (url: string) =>
+  url.split('?')[0].split('/').pop() || 'event-image';
+
 const computeValidity = (startDate: string, endDate: string) => {
   const now = new Date();
   const start = new Date(startDate);
@@ -76,54 +82,14 @@ const SpecialEventDetailScreen = ({ route, navigation }: any) => {
   const event: SpecialEvent = route.params?.event || {};
   const insets = useSafeAreaInsets();
 
-  // Check if we have valid event data
-  if (!event.id) {
-    return (
-      <SafeAreaView edges={['top']} style={styles.safeTop}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
-            >
-              <Icon name="arrow-back" size={24} color="#000" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              Event Not Found
-            </Text>
-            <View style={styles.headerIcons} />
-          </View>
-          <View style={styles.errorContainer}>
-            <Icon name="error-outline" size={64} color="#ccc" />
-            <Text style={styles.errorText}>Event data not available</Text>
-            <Text style={styles.errorSubText}>
-              The event you're looking for could not be loaded.
-            </Text>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   /** Bottom sheet animation */
   const animatedHeight = useRef(new Animated.Value(MIN_HEIGHT)).current;
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  const animateBottomSheet = (toValue: number) => {
-    Animated.timing(animatedHeight, {
-      toValue,
-      duration: 280,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const currentY = event.nativeEvent.contentOffset.y;
-    if (currentY > lastScrollY + 16) animateBottomSheet(MAX_HEIGHT);
-    else if (currentY < lastScrollY - 16) animateBottomSheet(MIN_HEIGHT);
-    setLastScrollY(currentY);
-  };
+  /** Image loading states with better error handling */
+  const [imageAspect, setImageAspect] = useState<number | undefined>(undefined);
+  const [imgLoading, setImgLoading] = useState<boolean>(!!event.image);
+  const [imgError, setImgError] = useState<boolean>(false);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -144,14 +110,29 @@ const SpecialEventDetailScreen = ({ route, navigation }: any) => {
     }),
   ).current;
 
-  /** Image loading states */
-  const [imageAspect, setImageAspect] = useState<number | undefined>(undefined);
-  const [imgLoading, setImgLoading] = useState<boolean>(!!event.image);
-  const [imgError, setImgError] = useState<boolean>(false);
+  const animateBottomSheet = (toValue: number) => {
+    Animated.timing(animatedHeight, {
+      toValue,
+      duration: 280,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  };
 
-  const handleImageLoad = (event: any) => {
-    const { width, height } = event.nativeEvent.source;
-    setImageAspect(width / height);
+  const handleScroll = (
+    scrollEvent: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const currentY = scrollEvent.nativeEvent.contentOffset.y;
+    if (currentY > lastScrollY + 16) animateBottomSheet(MAX_HEIGHT);
+    else if (currentY < lastScrollY - 16) animateBottomSheet(MIN_HEIGHT);
+    setLastScrollY(currentY);
+  };
+
+  const handleImageLoad = (loadEvent: any) => {
+    const { width, height } = loadEvent.nativeEvent.source;
+    if (width && height && height !== 0) {
+      setImageAspect(width / height);
+    }
     setImgLoading(false);
     setImgError(false);
   };
@@ -162,18 +143,77 @@ const SpecialEventDetailScreen = ({ route, navigation }: any) => {
     console.log('Image failed to load:', event.image);
   };
 
+  const handleImageLoadStart = () => {
+    setImgLoading(true);
+    setImgError(false);
+  };
+
   const handleShare = async () => {
     try {
+      let filePath: string | undefined;
+      if (event.image) {
+        if (isBase64(event.image)) {
+          const base64Data = event.image.replace(
+            /^data:image\/\w+;base64,/,
+            '',
+          );
+          const ext =
+            event.image.match(/^data:image\/(\w+);base64,/)?.[1] || 'png';
+          filePath = `${RNFS.CachesDirectoryPath}/event.${ext}`;
+          await RNFS.writeFile(filePath, base64Data, 'base64');
+        } else {
+          const fname = filenameFromUrl(event.image);
+          filePath = `${RNFS.CachesDirectoryPath}/${fname}`;
+          if (!(await RNFS.exists(filePath))) {
+            await RNFS.downloadFile({ fromUrl: event.image, toFile: filePath })
+              .promise;
+          }
+        }
+      }
+
       await Share.share({
-        message: `Check out this special event: ${event.name}`,
-        title: event.name,
+        message: `Check out this special event: ${
+          event.name
+        }\nValid: ${formatDate(event.startDate)} to ${formatDate(
+          event.endDate,
+        )}\n\nGet the app here:\nhttps://play.google.com/store/apps/details?id=com.jspromotionalatestversion`,
+        url: filePath ? `file://${filePath}` : undefined,
       });
-    } catch (error) {
-      console.error('Error sharing event:', error);
+    } catch (err: any) {
+      console.error('Error sharing event:', err?.message || err);
     }
   };
 
   const validMeta = computeValidity(event.startDate, event.endDate);
+
+  // Check if we have valid event data
+  if (!event.id) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safeTop}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
+            >
+              <Icon name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              Event Not Found
+            </Text>
+            <View style={styles.headerIcons} />
+          </View>
+          <View style={styles.errorContainerFull}>
+            <Icon name="error-outline" size={64} color="#ccc" />
+            <Text style={styles.errorTextFull}>Event data not available</Text>
+            <Text style={styles.errorSubText}>
+              The event you're looking for could not be loaded.
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeTop}>
@@ -249,12 +289,9 @@ const SpecialEventDetailScreen = ({ route, navigation }: any) => {
             <View
               style={[
                 styles.statusChip,
-                styles[
-                  `chip${
-                    validMeta.status.charAt(0).toUpperCase() +
-                    validMeta.status.slice(1)
-                  }`
-                ],
+                validMeta.status === 'active' && styles.chipActive,
+                validMeta.status === 'upcoming' && styles.chipUpcoming,
+                validMeta.status === 'expired' && styles.chipExpired,
               ]}
             >
               <Icon
@@ -282,28 +319,46 @@ const SpecialEventDetailScreen = ({ route, navigation }: any) => {
             <View style={styles.imageSection}>
               <View style={styles.imageWrap}>
                 {imgLoading && (
-                  <ActivityIndicator
-                    size="small"
-                    color="#4C6EF5"
-                    style={styles.loader}
-                  />
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#4C6EF5" />
+                    <Text style={styles.loadingText}>Loading image...</Text>
+                  </View>
                 )}
 
                 {event.image && !imgError ? (
                   <Image
-                    source={{ uri: event.image }}
+                    source={{
+                      uri: event.image,
+                      cache: 'force-cache',
+                    }}
                     style={[
                       styles.eventImage,
-                      imageAspect && { aspectRatio: imageAspect },
-                    ]}
+                      imageAspect ? { aspectRatio: imageAspect } : undefined,
+                    ].filter(Boolean)}
                     resizeMode="cover"
                     onLoad={handleImageLoad}
                     onError={handleImageError}
+                    onLoadStart={handleImageLoadStart}
+                    accessible
+                    accessibilityLabel="Event image"
                   />
                 ) : (
-                  <View style={styles.placeholderImage}>
-                    <Icon name="event" size={48} color="#ccc" />
-                    <Text style={styles.placeholderText}>Loading Image...</Text>
+                  <View style={styles.errorContainer}>
+                    <Icon name="broken-image" size={48} color="#ccc" />
+                    <Text style={styles.errorText}>
+                      {imgError ? 'Image not available' : 'No image provided'}
+                    </Text>
+                    {imgError && (
+                      <TouchableOpacity
+                        style={styles.retryButton}
+                        onPress={() => {
+                          setImgError(false);
+                          setImgLoading(true);
+                        }}
+                      >
+                        <Text style={styles.retryText}>Retry</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
@@ -344,6 +399,12 @@ const SpecialEventDetailScreen = ({ route, navigation }: any) => {
               style={styles.shareEventButton}
               activeOpacity={0.9}
             >
+              <Icon
+                name="share"
+                size={16}
+                color="#4C6EF5"
+                style={styles.shareIcon}
+              />
               <Text style={styles.shareEventText}>Share Event</Text>
             </TouchableOpacity>
           </View>
@@ -453,26 +514,60 @@ const styles = StyleSheet.create({
   eventContent: { paddingHorizontal: 12 },
   imageSection: { marginBottom: 18, alignItems: 'center' },
 
-  imageWrap: { width: '100%', position: 'relative' },
-  loader: { position: 'absolute', top: 10, right: 10, zIndex: 1 },
+  imageWrap: { width: '100%', position: 'relative', minHeight: 200 },
+
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
 
   eventImage: {
     width: '100%',
     borderRadius: 10,
     backgroundColor: '#e8e8e8',
   },
-  placeholderImage: {
+
+  errorContainer: {
     width: '100%',
     height: 200,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
   },
-  placeholderText: {
-    color: '#999',
-    fontSize: 14,
+  errorText: {
     marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+
+  retryButton: {
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#4C6EF5',
+    borderRadius: 6,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   imageSubText: {
     color: '#000',
@@ -524,16 +619,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#4C6EF5',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  shareIcon: {
+    marginRight: 6,
   },
   shareEventText: { color: '#4C6EF5', fontSize: 14, fontWeight: 'bold' },
 
-  errorContainer: {
+  errorContainerFull: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  errorText: {
+  errorTextFull: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
