@@ -140,8 +140,6 @@ const SignupScreen = () => {
         />
       </View>
 
-      <Text style={styles.title}>Easy Flyer</Text>
-
       {/* Input Field */}
       <TextInput
         style={styles.input}
