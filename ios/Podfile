@@ -8,11 +8,11 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Required for @react-native-firebase packages
+use_frameworks! :linkage => :static
+
+# Workaround to avoid duplicate symbols when using use_frameworks! with React Native
+$RNFirebaseAsStaticFramework = true
 
 target 'easy-flyer' do
   config = use_native_modules!
